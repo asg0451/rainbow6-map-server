@@ -22,11 +22,9 @@ executable r6-maps
                      , wai-extra
                      , wai
                      , transformers
-                     , silently
-                     , blaze-html
-                     , blaze-markup
                      , filepath
                      , directory
                      , split
                      , safe
                      , lucid
+                     , text

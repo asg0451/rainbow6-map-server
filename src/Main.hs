@@ -14,13 +14,11 @@ import           Safe                                 (readDef)
 import           System.Directory
 import           System.FilePath
 
-import           Text.Blaze.Html.Renderer.Text        (renderHtml)
-import           Text.Blaze.Html5                     hiding (main, map)
-import qualified Text.Blaze.Html5                     as H
-import           Text.Blaze.Html5.Attributes          hiding (param)
-import qualified Text.Blaze.Html5.Attributes          as A
+import qualified Data.Text                            as T
+import           Lucid
+import           Lucid.Base
 
-blaze = S.html . renderHtml
+lucid = S.raw . renderBS
 
 main :: IO ()
 main =
@@ -28,7 +26,8 @@ main =
     do middleware logStdoutDev
        middleware $ staticPolicy $ hasPrefix "maps/" <|> hasPrefix "static/"
        get "/map/:map" $
-           do mapSelection <- S.param "map"
+           do setHeader "Content-Type" "text/html"
+              mapSelection <- S.param "map"
               when ('/' `elem` mapSelection) next
               files <- liftIO $ getDirectoryContents $ "maps/" </> mapSelection
               let files' =
@@ -51,57 +50,68 @@ main =
                           (\m ->
                                 m /= "." && m /= "..")
                           maps
-              blaze $
+              lucid $
                   template maps' ("map viewer: " ++ mapSelection) $
-                  do H.div ! class_ "container-fluid" $
+                  do div_ [class_ "container-fluid"] $
                          do let chunkedFiles = chunksOf 2 files''
-                                toCol :: FilePath -> Html
+                                toCol :: FilePath -> Html ()
                                 toCol f =
-                                    H.div ! class_ "col-md-6" $
-                                    do H.img !
-                                           A.src
-                                               (toValue $
-                                                "/maps" </> mapSelection </> f)
+                                    div_ [class_ "col-md-6"] $
+                                    do img_
+                                           [ src_
+                                                 (T.pack $
+                                                  "/maps" </> mapSelection </>
+                                                  f)
+                                           , class_ "img-responsive"]
                             forM_ chunkedFiles $
-                                (H.div ! class_ "row") . mapM_ toCol
+                                (div_ [class_ "row"]) . mapM toCol
 
 
-template :: [String] -> String -> Html -> Html
+template :: [String] -> String -> Html () -> Html ()
 template ms title body = do
-    docType
-    H.html ! lang "en" $
-        do H.head $
-               do meta ! charset "utf-8"
-                  meta ! name "viewport" !
-                      content
-                          "width=device-width, initial-scale=1"
-                  H.title $ toHtml title
+    doctype_
+    html_ [lang_ "en"] $
+        do head_ $
+               do meta_ [charset_ "utf-8"]
+                  meta_
+                      [ name_ "viewport"
+                      , content_ "width=device-width, initial-scale=1"]
+                  title_ $ toHtml title
                   includes
-           H.body $
+           body_ $
                do body
                   theFooter ms
 
-theFooter :: [String] -> Html
+theFooter :: [String] -> Html ()
 theFooter ms =
-    nav ! class_ "navbar navbar-default navbar-fixed-bottom" $
-    do H.div ! class_ "container" $
-           do H.div ! class_ "footer" $
-                  do do forM_ ms $
-                            \m ->
-                                 a ! class_ "navbar-link" !
-                                 href (toValue $ "/map/" ++ m) $
-                                 toHtml m
+    nav_ [class_ "navbar navbar-default navbar-fixed-bottom"] $
+    do div_ [class_ "container"] $
+           do div_ [class_ "footer"] $
+                  do forM_ ms $
+                         \m ->
+                              a_
+                                  [ class_ "navbar-link"
+                                  , href_ (T.pack $ "/map/" ++ m)] $
+                              toHtml m
 
-includes :: Html
+includes :: Html ()
 includes = do
-    link ! rel "stylesheet" ! -- bootstrap
-        href
-            "http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css"
-    script mempty !
-        src "https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"
-    script mempty !
-        src
-            "http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"
-    H.link ! A.href "/static/css/default.css" ! A.title "compact" !
-        A.rel "stylesheet" !
-        A.type_ "text/css"
+    link_
+        [ rel_ "stylesheet"
+        , href_
+              "http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css"]
+    scriptIncl_
+        [ src_
+              "https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"]
+
+    scriptIncl_
+        [ src_
+              "http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"]
+    link_
+        [ href_ "/static/css/default.css"
+        , title_ "compact"
+        , rel_ "stylesheet"
+        , type_ "text/css"]
+
+scriptIncl_ :: [Attribute] -> Html ()
+scriptIncl_ as = script_ as $ T.pack ""
