@@ -44,6 +44,11 @@ main =
                                     nb = readDef 0 $ init bName :: Int
                                 in compare na nb)
                           files'
+                  filesWithFloor =
+                      map
+                          (\f ->
+                                (takeBaseName f, f))
+                          files''
               maps <- liftIO $ getDirectoryContents "maps/"
               let maps' =
                       filter
@@ -53,15 +58,16 @@ main =
               lucid $
                   template maps' ("map viewer: " ++ mapSelection) $
                   do div_ [class_ "container-fluid"] $
-                         do let chunkedFiles = chunksOf 2 files''
-                                toCol :: FilePath -> Html ()
-                                toCol f =
+                         do let chunkedFiles = chunksOf 2 filesWithFloor
+                                toCol :: (String, FilePath) -> Html ()
+                                toCol (name,f) =
                                     div_ [class_ "col-md-6"] $
-                                    do img_
-                                           [ src_
-                                                 (T.pack $
-                                                  "/maps" </> mapSelection </>
-                                                  f)
+                                    do div_ [class_ "col-md-12"] $
+                                           h3_ $ toHtml name
+                                       img_
+                                           [ src_ $
+                                             T.pack $
+                                             "/maps" </> mapSelection </> f
                                            , class_ "img-responsive"]
                             forM_ chunkedFiles $
                                 (div_ [class_ "row"]) . mapM toCol
